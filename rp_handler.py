@@ -254,6 +254,7 @@ def call_llama(
 
 
 def handler(event: Dict[str, Any]) -> Dict[str, Any]:
+    start_llama_server()
     payload = event["input"]
     answers = call_llama(
         messages=payload["query"],
@@ -264,9 +265,6 @@ def handler(event: Dict[str, Any]) -> Dict[str, Any]:
         repetition_penalty=payload["repetition_penalty"],
     )
     return {"text": answers}
-
-
-start_llama_server()
 
 
 if __name__ == "__main__":
