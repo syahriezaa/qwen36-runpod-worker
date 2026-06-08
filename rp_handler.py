@@ -7,6 +7,7 @@ import subprocess
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import Any, Dict, List, Union
 
 import requests
@@ -32,6 +33,7 @@ RETRY_BASE_MS = int(os.getenv("RETRY_BASE_MS", "120"))
 MAX_LOCAL_PARALLEL = int(os.getenv("MAX_LOCAL_PARALLEL", str(PARALLEL_SLOTS or 4)))
 
 LLAMA_BASE_URL = f"http://{LLAMA_HOST}:{LLAMA_PORT}/v1"
+LLAMA_LOG_PATH = Path(os.getenv("LLAMA_LOG_PATH", "/tmp/llama-server.log"))
 
 _llama_proc: subprocess.Popen | None = None
 _start_lock = threading.Lock()
@@ -44,8 +46,32 @@ def _wait_port(host: str, port: int, deadline_s: int = 120) -> None:
             with socket.create_connection((host, port), timeout=1.5):
                 return
         except OSError:
+            if _llama_proc is not None and _llama_proc.poll() is not None:
+                raise RuntimeError(_format_llama_failure(_llama_proc.returncode))
             time.sleep(0.2)
-    raise RuntimeError(f"[llama] port {host}:{port} did not open within {deadline_s}s")
+    raise RuntimeError(
+        f"[llama] port {host}:{port} did not open within {deadline_s}s. {_format_llama_failure(None)}"
+    )
+
+
+def _tail_llama_log(max_lines: int = 80) -> str:
+    if not LLAMA_LOG_PATH.exists():
+        return "llama log file not found"
+
+    try:
+        lines = LLAMA_LOG_PATH.read_text(errors="replace").splitlines()
+    except Exception as err:
+        return f"unable to read llama log: {err}"
+
+    if not lines:
+        return "llama log is empty"
+
+    return "\n".join(lines[-max_lines:])
+
+
+def _format_llama_failure(returncode: int | None) -> str:
+    rc_part = "still running" if returncode is None else f"exit code {returncode}"
+    return f"llama-server {rc_part}. log tail:\n{_tail_llama_log()}"
 
 
 def _models_ready(timeout_s: int = 300) -> str | None:
@@ -138,12 +164,15 @@ def start_llama_server() -> None:
             MODEL_ALIAS,
         ]
         print(f"[llama] starting server: {' '.join(cmd)}", flush=True)
-        _llama_proc = subprocess.Popen(cmd)
+        LLAMA_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        LLAMA_LOG_PATH.write_text("")
+        log_handle = open(LLAMA_LOG_PATH, "a", encoding="utf-8")
+        _llama_proc = subprocess.Popen(cmd, stdout=log_handle, stderr=subprocess.STDOUT, text=True)
 
         _wait_port(LLAMA_HOST, LLAMA_PORT, deadline_s=120)
         model_id = _models_ready(timeout_s=300)
         if not model_id:
-            raise RuntimeError("[llama] model did not become ready within 300s")
+            raise RuntimeError(f"[llama] model did not become ready within 300s. {_format_llama_failure(None)}")
 
         try:
             _post_with_retry(
