@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAME: ghcr.io/syahriezaa/qwen36-a3b-serverless
+  IMAGE_NAME: ghcr.io/syahriezaa/qwen36-a3b-serverless-public
 
 jobs:
   build-and-push:
@@ -39,6 +39,9 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
+          labels: |
+            org.opencontainers.image.source=https://github.com/syahriezaa/qwen36-runpod-worker
+            org.opencontainers.image.description=RunPod serverless worker for Qwen3.6-35B-A3B via llama.cpp
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
