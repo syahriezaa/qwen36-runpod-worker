@@ -27,12 +27,9 @@ COPY rp_handler.py /workspace/rp_handler.py
 COPY start.sh /usr/local/bin/start.sh
 
 RUN sed -i 's/\r$//' /usr/local/bin/start.sh \
-  && chmod +x /usr/local/bin/start.sh \
-  && mkdir -p /opt/llama/bin \
-  && LLAMA_SERVER_PATH="$(command -v llama-server)" \
-  && ln -sf "${LLAMA_SERVER_PATH}" /opt/llama/bin/llama-server
+  && chmod +x /usr/local/bin/start.sh
 
-ENV LLAMA_BIN=/opt/llama/bin/llama-server \
+ENV LLAMA_BIN=llama-server \
     MODEL_PATH=/runpod-volume/models/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf \
     MODEL_ALIAS=qwen36-a3b \
     N_GPU_LAYERS=999 \

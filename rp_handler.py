@@ -1,5 +1,6 @@
 import os
 import random
+import shutil
 import signal
 import socket
 import subprocess
@@ -95,14 +96,24 @@ def start_llama_server() -> None:
         if _llama_proc is not None and _llama_proc.poll() is None:
             return
 
+        llama_bin = LLAMA_BIN
+        if not os.path.isabs(llama_bin):
+            resolved = shutil.which(llama_bin)
+            if resolved:
+                llama_bin = resolved
+
         wait_started = time.time()
-        while not (os.path.isfile(LLAMA_BIN) and os.access(LLAMA_BIN, os.X_OK)):
+        while not (os.path.isfile(llama_bin) and os.access(llama_bin, os.X_OK)):
             if time.time() - wait_started > 60:
-                raise RuntimeError(f"[llama] LLAMA_BIN not found or not executable: {LLAMA_BIN}")
+                raise RuntimeError(f"[llama] LLAMA_BIN not found or not executable: {llama_bin}")
+            if not os.path.isabs(LLAMA_BIN):
+                resolved = shutil.which(LLAMA_BIN)
+                if resolved:
+                    llama_bin = resolved
             time.sleep(1)
 
         cmd = [
-            LLAMA_BIN,
+            llama_bin,
             "-m",
             MODEL_PATH,
             "--host",
