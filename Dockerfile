@@ -2,6 +2,7 @@ FROM ghcr.io/ggml-org/llama.cpp:server-cuda
 
 ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
+    LD_LIBRARY_PATH=/app \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
